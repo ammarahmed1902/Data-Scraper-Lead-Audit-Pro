@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: leadaudit
+          POSTGRES_PASSWORD: leadaudit_secret
+          POSTGRES_DB: lead_audit_pro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+
+      - name: Lint
+        working-directory: backend
+        run: ruff check app tests
+
+      - name: Run tests
+        working-directory: backend
+        env:
+          APP_SECRET_KEY: test-secret-key-minimum-32-characters-long
+          DATABASE_URL: postgresql+asyncpg://leadaudit:leadaudit_secret@localhost:5432/lead_audit_pro
+          DATABASE_URL_SYNC: postgresql://leadaudit:leadaudit_secret@localhost:5432/lead_audit_pro
+          REDIS_URL: redis://localhost:6379/0
+          CELERY_BROKER_URL: redis://localhost:6379/1
+          CELERY_RESULT_BACKEND: redis://localhost:6379/2
+          JWT_SECRET_KEY: test-jwt-secret-key-minimum-32-chars
+          CSRF_SECRET_KEY: test-csrf-secret-key-minimum-32-chars
+          CELERY_TASK_ALWAYS_EAGER: "true"
+        run: python -m pytest tests/ -v --ignore=tests/test_auth_service.py
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type check
+        working-directory: frontend
+        run: npm run type-check
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
