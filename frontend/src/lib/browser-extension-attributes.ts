@@ -11,10 +11,12 @@
 export const BROWSER_EXTENSION_ATTRIBUTES = [
   "bis_skin_checked",
   "bis_register",
+  "bis_use",
   "cz-shortcut-listen",
   "data-new-gr-c-s-check-loaded",
   "data-gr-ext-installed",
   "data-gr-ext-disabled",
   "data-lt-installed",
+  "data-dynamic-id",
   "fdprocessedid",
 ] as const;

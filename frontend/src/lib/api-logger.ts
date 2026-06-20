@@ -30,6 +30,6 @@ export function logApi(ctx: ApiLogContext): void {
   if (ctx.error) {
     console.error(parts.join(" | "), ctx.detail ?? "");
   } else {
-    console.info(parts.join(" | "), ctx.detail ?? "");
+    console.warn(parts.join(" | "), ctx.detail ?? "");
   }
 }

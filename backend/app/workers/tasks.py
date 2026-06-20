@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import structlog
@@ -12,8 +12,11 @@ from app.core.config import settings
 from app.core.sync_database import get_sync_session
 from app.models.audit import AuditReport, AuditStatus
 from app.services.audit_runner import AuditRunner
+from app.services.discovery_runner import LeadDiscoveryRunner
+from app.services.enrichment_runner import EnrichmentRunner
 from app.services.export_runner import ExportRunner
 from app.services.report_runner import ReportRunner
+from app.services.scoring_runner import LeadScoringRunner
 from app.workers.celery_worker import celery_app
 
 logger = structlog.get_logger(__name__)
@@ -42,7 +45,7 @@ def run_audit(self, audit_id: str):
     except Exception as exc:
         logger.exception("audit_task_failed", audit_id=audit_id)
         if self.request.retries < self.max_retries:
-            raise self.retry(exc=exc, countdown=30)
+            raise self.retry(exc=exc, countdown=30) from exc
         raise
 
 
@@ -56,7 +59,7 @@ def generate_report(self, report_id: str):
     except Exception as exc:
         logger.exception("report_task_failed", report_id=report_id)
         if self.request.retries < self.max_retries:
-            raise self.retry(exc=exc, countdown=15)
+            raise self.retry(exc=exc, countdown=15) from exc
         raise
 
 
@@ -70,7 +73,7 @@ def run_export(self, export_id: str):
     except Exception as exc:
         logger.exception("export_task_failed", export_id=export_id)
         if self.request.retries < self.max_retries:
-            raise self.retry(exc=exc, countdown=15)
+            raise self.retry(exc=exc, countdown=15) from exc
         raise
 
 
@@ -81,7 +84,7 @@ def cleanup_expired_reports():
 
     removed = 0
     with get_sync_session() as session:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         reports = (
             session.query(Report)
             .filter(Report.expires_at.isnot(None), Report.expires_at < now)
@@ -122,3 +125,66 @@ def retry_failed_audits():
                 requeued += 1
     logger.info("retry_failed_audits", requeued=requeued)
     return {"requeued": requeued}
+
+
+@celery_app.task(name="app.workers.tasks.run_discovery_search", bind=True, max_retries=2)
+def run_discovery_search(self, search_id: str):
+    """Execute lead discovery search in background."""
+    logger.info("discovery_task_start", search_id=search_id, retries=self.request.retries)
+    try:
+        with get_sync_session() as session:
+            search = LeadDiscoveryRunner(session).run(uuid.UUID(search_id))
+        logger.info(
+            "discovery_task_complete",
+            search_id=search_id,
+            status=search.status,
+            total_found=search.total_found,
+            total_new=search.total_new,
+            total_duplicates=search.total_duplicates,
+            error_message=search.error_message,
+        )
+        return {
+            "search_id": search_id,
+            "status": search.status,
+            "total_found": search.total_found,
+            "total_new": search.total_new,
+            "total_duplicates": search.total_duplicates,
+        }
+    except Exception as exc:
+        logger.exception(
+            "discovery_task_failed",
+            search_id=search_id,
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=exc, countdown=30) from exc
+        raise
+
+
+@celery_app.task(name="app.workers.tasks.run_enrichment_job", bind=True, max_retries=2)
+def run_enrichment_job(self, job_id: str):
+    """Execute business data enrichment job in background."""
+    try:
+        with get_sync_session() as session:
+            EnrichmentRunner(session).run(uuid.UUID(job_id))
+        return {"job_id": job_id, "status": "completed"}
+    except Exception as exc:
+        logger.exception("enrichment_task_failed", job_id=job_id)
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=exc, countdown=30) from exc
+        raise
+
+
+@celery_app.task(name="app.workers.tasks.run_lead_scoring_job", bind=True, max_retries=2)
+def run_lead_scoring_job(self, job_id: str):
+    """Execute lead scoring job in background."""
+    try:
+        with get_sync_session() as session:
+            LeadScoringRunner(session).run(uuid.UUID(job_id))
+        return {"job_id": job_id, "status": "completed"}
+    except Exception as exc:
+        logger.exception("scoring_task_failed", job_id=job_id)
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=exc, countdown=30) from exc
+        raise

@@ -1,5 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
 interface PageHeaderProps {
   title: string;
   description?: string;
@@ -8,14 +6,16 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
-    <div className="flex items-center justify-between mb-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+    <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
         {description && (
-          <p className="text-muted-foreground mt-1">{description}</p>
+          <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">{description}</p>
         )}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+      )}
     </div>
   );
 }
@@ -28,14 +28,10 @@ interface EmptyStateProps {
 
 export function EmptyState({ title, description, action }: EmptyStateProps) {
   return (
-    <Card className="glass-card">
-      <CardHeader className="text-center">
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="text-center">
-        <p className="text-muted-foreground mb-4">{description}</p>
-        {action}
-      </CardContent>
-    </Card>
+    <div className="glass-card flex flex-col items-center justify-center px-6 py-12 text-center">
+      <h3 className="text-lg font-semibold">{title}</h3>
+      <p className="mt-2 max-w-md text-sm text-muted-foreground">{description}</p>
+      {action && <div className="mt-6">{action}</div>}
+    </div>
   );
 }

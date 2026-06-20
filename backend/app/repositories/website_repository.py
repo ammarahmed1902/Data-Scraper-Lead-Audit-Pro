@@ -1,7 +1,6 @@
 """Website repository."""
 
 import uuid
-from typing import Optional
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,8 +17,8 @@ class WebsiteRepository(BaseRepository[Website]):
         self,
         query,
         owner_id: uuid.UUID,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
+        status: str | None = None,
+        search: str | None = None,
     ):
         query = query.where(Website.owner_id == owner_id)
         if status:
@@ -42,8 +41,8 @@ class WebsiteRepository(BaseRepository[Website]):
         owner_id: uuid.UUID,
         skip: int = 0,
         limit: int = 100,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
+        status: str | None = None,
+        search: str | None = None,
     ) -> list[Website]:
         query = select(Website)
         query = self._apply_filters(query, owner_id, status, search)
@@ -54,8 +53,8 @@ class WebsiteRepository(BaseRepository[Website]):
     async def count_by_owner(
         self,
         owner_id: uuid.UUID,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
+        status: str | None = None,
+        search: str | None = None,
     ) -> int:
         query = select(func.count()).select_from(Website)
         query = self._apply_filters(query, owner_id, status, search)
@@ -64,7 +63,7 @@ class WebsiteRepository(BaseRepository[Website]):
 
     async def get_by_id_for_owner(
         self, website_id: uuid.UUID, owner_id: uuid.UUID
-    ) -> Optional[Website]:
+    ) -> Website | None:
         result = await self.session.execute(
             select(Website).where(
                 Website.id == website_id,
@@ -73,7 +72,7 @@ class WebsiteRepository(BaseRepository[Website]):
         )
         return result.scalar_one_or_none()
 
-    async def get_by_domain(self, domain: str, owner_id: uuid.UUID) -> Optional[Website]:
+    async def get_by_domain(self, domain: str, owner_id: uuid.UUID) -> Website | None:
         result = await self.session.execute(
             select(Website).where(Website.domain == domain, Website.owner_id == owner_id)
         )

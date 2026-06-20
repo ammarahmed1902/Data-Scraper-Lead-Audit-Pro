@@ -1,7 +1,6 @@
 """User repository."""
 
 import uuid
-from typing import Optional
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,13 +13,13 @@ class UserRepository(BaseRepository[User]):
     def __init__(self, session: AsyncSession):
         super().__init__(User, session)
 
-    async def get_by_email(self, email: str) -> Optional[User]:
+    async def get_by_email(self, email: str) -> User | None:
         result = await self.session.execute(
             select(User).where(User.email == email)
         )
         return result.scalar_one_or_none()
 
-    async def get_active_by_id(self, user_id: uuid.UUID) -> Optional[User]:
+    async def get_active_by_id(self, user_id: uuid.UUID) -> User | None:
         result = await self.session.execute(
             select(User).where(User.id == user_id, User.is_active.is_(True))
         )

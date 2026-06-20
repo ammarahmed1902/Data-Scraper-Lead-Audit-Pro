@@ -1,79 +1,113 @@
-# Phase 02 — Database & Authentication
+# Phase 02 — Business Data Enrichment
 
-## Deliverables
+## Overview
 
-### Database Layer
-- Alembic initial migration (`001_initial_schema.py`) — all 8 tables
-- SQLAlchemy models (from Phase 01, unchanged)
-- PostgreSQL extensions via `docker/postgres/init.sql`
+Enriches discovered businesses by crawling their websites and extracting structured data: company info, contact details, services, team, technology stack, and CMS detection. Processing runs asynchronously via Celery on the `enrichment` queue.
 
-### Authentication APIs
-| Endpoint | Status |
-|----------|--------|
-| `POST /auth/register` | Implemented |
-| `POST /auth/login` | Implemented |
-| `POST /auth/refresh` | Implemented with token rotation |
-| `POST /auth/logout` | Implemented with Redis revocation |
-| `GET /auth/me` | Implemented |
+## Database Schema
 
-### User Management APIs
-| Endpoint | Role Required |
-|----------|---------------|
-| `GET /users` | admin |
-| `GET /users/{id}` | manager (own profile for non-admins) |
-| `POST /users` | admin |
-| `PUT /users/{id}` | admin |
-| `DELETE /users/{id}` | admin (soft deactivate) |
+### `enrichment_jobs`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| user_id | UUID FK → users | Job owner |
+| job_type | VARCHAR(50) | `single_lead` or `search_bulk` |
+| lead_id | UUID FK | Target lead (single jobs) |
+| search_id | UUID FK | Target search (bulk jobs) |
+| status | VARCHAR(50) | pending, running, completed, failed |
+| total_leads | INT | Leads to process |
+| processed_leads | INT | Completed count |
+| failed_leads | INT | Failed count |
+| celery_task_id | VARCHAR | Background task ID |
+| started_at / completed_at | TIMESTAMPTZ | Timing |
 
-### Security Implementation
-- JWT access tokens (30 min) with `jti` claim
-- Refresh tokens (7 days) stored in Redis with rotation
-- Access token blacklist on logout (Redis)
-- bcrypt password hashing
-- RBAC with 5 roles and permission matrix
-- Rate limiting on auth endpoints
+### `business_enrichments`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| lead_id | UUID FK → discovered_leads | 1:1 with lead |
+| user_id | UUID FK | Owner |
+| job_id | UUID FK | Parent job |
+| status | VARCHAR(50) | pending, running, completed, failed |
+| company_name | VARCHAR(500) | Extracted name |
+| about_us_content | TEXT | About page text |
+| services | JSONB | List of services |
+| contact_page_data | JSONB | Address, hours, labeled fields |
+| email_addresses | JSONB | Extracted emails |
+| phone_numbers | JSONB | Extracted phones |
+| team_members | JSONB | Name + title pairs |
+| business_description | TEXT | Meta / summary description |
+| technology_stack | JSONB | Detected technologies |
+| cms_platform | VARCHAR(100) | Primary CMS |
+| cms_detected | JSONB | WordPress, Shopify, Wix, etc. |
+| pages_crawled | JSONB | URLs visited |
+| raw_extraction | JSONB | Debug metadata |
 
-## Setup Commands
+**Unique constraint:** `lead_id` (one enrichment record per lead)
 
-```bash
-# Start infrastructure
-docker compose up -d postgres redis
+## API Endpoints
 
-# Run migrations
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/enrichment/leads/{lead_id}` | Enrich single lead (202, 10/min) |
+| POST | `/api/v1/enrichment/searches/{search_id}` | Bulk enrich search (202, 5/min) |
+| GET | `/api/v1/enrichment/jobs/{job_id}` | Job status & progress |
+| GET | `/api/v1/enrichment/leads/{lead_id}` | Full enrichment data |
+| GET | `/api/v1/enrichment/enrichments` | List enrichments (paginated) |
+
+## Architecture
+
+```
+Frontend (/discovery)
+  → POST /enrichment/leads/{id} or /enrichment/searches/{id}
+  → EnrichmentService (commit before queue)
+  → Celery run_enrichment_job
+  → EnrichmentRunner
+  → BusinessEnrichmentEngine
+      → WebsiteCrawler (home, about, services, contact, team)
+      → ContentExtractor (emails, phones, services, team)
+      → TechStackDetector (CMS + stack)
+  → business_enrichments table
+```
+
+## CMS Detection
+
+Detects: WordPress, Shopify, Wix, Squarespace, Webflow, React, Next.js, Laravel, PHP
+
+Signals: HTML markers, CDN URLs, meta tags, `X-Powered-By`, `Server` headers.
+
+## Configuration
+
+```env
+ENRICHMENT_REQUEST_DELAY_SECONDS=0.75
+ENRICHMENT_MAX_PAGES=6
+ENRICHMENT_FETCH_TIMEOUT_SECONDS=20.0
+CELERY_TASK_ALWAYS_EAGER=true  # dev — runs inline without Redis worker
+```
+
+## Permissions
+
+- `enrichment:run` — ADMIN, MANAGER, ANALYST
+- `enrichment:view` — all roles including VIEWER
+
+## Frontend
+
+Integrated into `/discovery`:
+- **Enrich** button per lead with website
+- **Enrich All** bulk action on completed searches
+- **View** dialog showing full enrichment data
+- Job polling for bulk enrichment progress
+
+## Running
+
+```powershell
+# Apply migration
 cd backend
 alembic upgrade head
 
-# Seed super admin
-python -m scripts.seed_admin
+# Start API
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
-# Default credentials (change in production!)
-# Email: admin@leadaudit.pro
-# Password: Admin123!ChangeMe
+# Start Celery worker (production)
+celery -A app.workers.celery_worker worker -Q enrichment,discovery,audits -l info
 ```
-
-## Running Tests
-
-```bash
-cd backend
-pytest tests/test_auth_service.py tests/test_permissions.py tests/test_health.py -v
-```
-
-## Frontend Auth Flow
-
-1. User submits login/register form
-2. Tokens stored in Zustand (persisted to localStorage)
-3. Auth cookie set for middleware route protection
-4. API client auto-refreshes on 401
-5. Logout revokes tokens server-side and clears client state
-
-## Permission Matrix
-
-See `backend/app/core/permissions.py` for the full `ROLE_PERMISSIONS` mapping.
-
-| Role | Level | Can Manage Users |
-|------|-------|-----------------|
-| super_admin | 100 | All roles |
-| admin | 80 | manager, analyst, viewer |
-| manager | 60 | — |
-| analyst | 40 | — |
-| viewer | 20 | — |

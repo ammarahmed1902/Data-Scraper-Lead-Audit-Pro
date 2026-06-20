@@ -35,8 +35,8 @@ class SEOAnalyzer:
         structured_data = parser.get_structured_data()
         alt_analysis = parser.get_images_alt_analysis()
         links = parser.get_links()
-        internal_links = [l for l in links if l["type"] == "internal"]
-        external_links = [l for l in links if l["type"] == "external"]
+        internal_links = [link for link in links if link["type"] == "internal"]
+        external_links = [link for link in links if link["type"] == "external"]
 
         has_sitemap = self._check_resource(urljoin(page.final_url, "/sitemap.xml"))
         has_robots_txt = self._check_resource(urljoin(page.final_url, "/robots.txt"))
@@ -64,6 +64,8 @@ class SEOAnalyzer:
             "title_tag": title,
             "meta_description": meta_description,
             "h1_count": len(h1_tags),
+            "h2_count": len(h2_tags),
+            "canonical_url": canonical,
             "internal_links": len(internal_links),
             "external_links": len(external_links),
             "broken_links": len(broken_links),
@@ -199,6 +201,8 @@ class SEOAnalyzer:
             "title_tag": None,
             "meta_description": None,
             "h1_count": 0,
+            "h2_count": 0,
+            "canonical_url": None,
             "internal_links": 0,
             "external_links": 0,
             "broken_links": 0,

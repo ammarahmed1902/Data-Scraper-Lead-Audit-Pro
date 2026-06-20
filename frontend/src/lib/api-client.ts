@@ -3,6 +3,7 @@
  */
 
 import { logApi } from "@/lib/api-logger";
+import { formatApiError } from "@/lib/format-api-error";
 import { useAuthStore } from "@/store/auth-store";
 import { clearAuthCookie } from "@/lib/auth-cookie";
 
@@ -157,11 +158,7 @@ async function request<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    const detail = error.detail;
-    const message =
-      typeof detail === "string"
-        ? detail
-        : `Request failed with status ${response.status}`;
+    const message = formatApiError(response.status, error);
 
     logApi({
       step: "fetch_error_response",

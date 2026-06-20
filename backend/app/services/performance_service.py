@@ -26,6 +26,32 @@ class PerformanceAnalyzer:
                 return pagespeed
         return self._analyze_fallback(url, page)
 
+    def fetch_lighthouse_accessibility(self, url: str) -> float | None:
+        """Fetch Lighthouse accessibility score (0-100) when API key is configured."""
+        if not settings.PAGESPEED_API_KEY:
+            return None
+        try:
+            with httpx.Client(timeout=60.0) as client:
+                response = client.get(
+                    PAGESPEED_API,
+                    params={
+                        "url": url,
+                        "key": settings.PAGESPEED_API_KEY,
+                        "strategy": "mobile",
+                        "category": "accessibility",
+                    },
+                )
+                if response.status_code != 200:
+                    return None
+                data = response.json()
+                score = data.get("lighthouseResult", {}).get("categories", {}).get(
+                    "accessibility", {}
+                ).get("score")
+                return round((score or 0) * 100, 1) if score is not None else None
+        except Exception as exc:
+            logger.warning("pagespeed_accessibility_failed", error=str(exc))
+            return None
+
     def _analyze_pagespeed(self, url: str) -> dict[str, Any] | None:
         try:
             with httpx.Client(timeout=60.0) as client:
@@ -201,3 +227,6 @@ class PerformanceAnalyzer:
 class PerformanceService:
     def analyze(self, url: str, page: FetchResult | None = None) -> dict[str, Any]:
         return PerformanceAnalyzer().analyze(url, page)
+
+    def fetch_lighthouse_accessibility(self, url: str) -> float | None:
+        return PerformanceAnalyzer().fetch_lighthouse_accessibility(url)

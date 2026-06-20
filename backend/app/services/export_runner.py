@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy.orm import selectinload
@@ -28,7 +28,7 @@ class ExportRunner:
             raise ValueError(f"Export {export_id} not found")
 
         export.status = ExportStatus.PROCESSING.value
-        export.started_at = datetime.now(timezone.utc)
+        export.started_at = datetime.now(UTC)
         self.session.flush()
 
         try:
@@ -38,11 +38,11 @@ class ExportRunner:
             export.file_size_bytes = Path(file_path).stat().st_size
             export.record_count = record_count
             export.status = ExportStatus.COMPLETED.value
-            export.completed_at = datetime.now(timezone.utc)
+            export.completed_at = datetime.now(UTC)
         except Exception as exc:
             export.status = ExportStatus.FAILED.value
             export.error_message = str(exc)[:2000]
-            export.completed_at = datetime.now(timezone.utc)
+            export.completed_at = datetime.now(UTC)
 
         self.session.flush()
         return export

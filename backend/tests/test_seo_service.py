@@ -1,8 +1,7 @@
 """SEO analyzer unit tests."""
 
-from app.services.seo_service import SEOAnalyzer
 from app.services.scraper.page_fetcher import FetchResult
-
+from app.services.seo_service import SEOAnalyzer
 
 SAMPLE_HTML = """
 <!DOCTYPE html>

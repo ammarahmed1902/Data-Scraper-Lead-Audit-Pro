@@ -1,7 +1,7 @@
 """Report repository."""
 
 import uuid
-from typing import List, Optional
+from datetime import UTC
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +23,7 @@ class ReportRepository(BaseRepository[Report]):
         skip: int = 0,
         limit: int = 20,
         audit_id: uuid.UUID | None = None,
-    ) -> List[Report]:
+    ) -> list[Report]:
         query = (
             select(Report)
             .join(AuditReport, Report.audit_report_id == AuditReport.id)
@@ -51,7 +51,7 @@ class ReportRepository(BaseRepository[Report]):
         result = await self.session.execute(query)
         return result.scalar_one()
 
-    async def get_for_owner(self, report_id: uuid.UUID, owner_id: uuid.UUID) -> Optional[Report]:
+    async def get_for_owner(self, report_id: uuid.UUID, owner_id: uuid.UUID) -> Report | None:
         result = await self.session.execute(
             select(Report)
             .join(AuditReport, Report.audit_report_id == AuditReport.id)
@@ -62,7 +62,7 @@ class ReportRepository(BaseRepository[Report]):
 
     async def get_audit_for_owner(
         self, audit_id: uuid.UUID, owner_id: uuid.UUID
-    ) -> Optional[AuditReport]:
+    ) -> AuditReport | None:
         result = await self.session.execute(
             select(AuditReport)
             .join(Website, AuditReport.website_id == Website.id)
@@ -70,18 +70,19 @@ class ReportRepository(BaseRepository[Report]):
                 selectinload(AuditReport.seo_report),
                 selectinload(AuditReport.performance_report),
                 selectinload(AuditReport.technical_report),
+                selectinload(AuditReport.website),
             )
             .where(AuditReport.id == audit_id, Website.owner_id == owner_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_expired(self) -> List[Report]:
-        from datetime import datetime, timezone
+    async def get_expired(self) -> list[Report]:
+        from datetime import datetime
 
         result = await self.session.execute(
             select(Report).where(
                 Report.expires_at.isnot(None),
-                Report.expires_at < datetime.now(timezone.utc),
+                Report.expires_at < datetime.now(UTC),
             )
         )
         return list(result.scalars().all())

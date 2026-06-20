@@ -1,0 +1,24 @@
+{
+  "name": "learing",
+  "version": "1.0.0",
+  "description": "Enterprise-grade SaaS platform for cold-calling and lead generation. Collect website URLs, run automated audits, store lead data, generate reports, and manage outreach opportunities.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ammarahmed1902/Data-Scraper-Lead-Audit-Pro.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ammarahmed1902/Data-Scraper-Lead-Audit-Pro/issues"
+  },
+  "homepage": "https://github.com/ammarahmed1902/Data-Scraper-Lead-Audit-Pro#readme"
+}

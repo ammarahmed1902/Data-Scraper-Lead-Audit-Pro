@@ -1,7 +1,7 @@
 """Authentication business logic."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,7 +64,7 @@ class AuthService:
                 detail="Account is deactivated",
             )
 
-        user.last_login_at = datetime.now(timezone.utc)
+        user.last_login_at = datetime.now(UTC)
         await self.user_repo.update(user)
 
         tokens = await self._issue_tokens(user)

@@ -4,8 +4,8 @@ Tables: audit_reports, seo_reports, performance_reports, technical_reports
 """
 
 import uuid
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 
 from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -14,7 +14,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 
-class AuditStatus(str, Enum):
+class AuditStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -38,6 +38,15 @@ class AuditReport(Base):
         String(50), default=AuditStatus.PENDING.value, nullable=False, index=True
     )
     overall_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    security_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    mobile_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    technical_seo_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    accessibility_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    conversion_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lead_opportunity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lead_classification: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+    sales_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category_breakdown: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -45,7 +54,7 @@ class AuditReport(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
 
     # Relationships
@@ -84,6 +93,8 @@ class SEOReport(Base):
     title_tag: Mapped[str | None] = mapped_column(String(500), nullable=True)
     meta_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     h1_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    h2_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    canonical_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     internal_links: Mapped[int | None] = mapped_column(Integer, nullable=True)
     external_links: Mapped[int | None] = mapped_column(Integer, nullable=True)
     broken_links: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -93,7 +104,7 @@ class SEOReport(Base):
     issues: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     recommendations: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
 
     audit_report: Mapped["AuditReport"] = relationship("AuditReport", back_populates="seo_report")
@@ -118,9 +129,10 @@ class PerformanceReport(Base):
     page_size_kb: Mapped[float | None] = mapped_column(Float, nullable=True)
     request_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     metrics: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    issues: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     recommendations: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
 
     audit_report: Mapped["AuditReport"] = relationship(
@@ -142,13 +154,16 @@ class TechnicalReport(Base):
     ssl_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     http_status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
     server_header: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    mobile_friendly: Mapped[bool | None] = mapped_column(nullable=True)
+    indexable: Mapped[bool | None] = mapped_column(nullable=True)
+    accessibility_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     technologies: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     security_headers: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     dns_records: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     issues: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     recommendations: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
 
     audit_report: Mapped["AuditReport"] = relationship(

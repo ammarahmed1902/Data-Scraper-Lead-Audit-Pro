@@ -1,7 +1,6 @@
 """Audit repository."""
 
 import uuid
-from typing import List, Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +15,7 @@ class AuditRepository(BaseRepository[AuditReport]):
     def __init__(self, session: AsyncSession):
         super().__init__(AuditReport, session)
 
-    async def get_with_reports(self, audit_id: uuid.UUID) -> Optional[AuditReport]:
+    async def get_with_reports(self, audit_id: uuid.UUID) -> AuditReport | None:
         result = await self.session.execute(
             select(AuditReport)
             .options(
@@ -30,7 +29,7 @@ class AuditRepository(BaseRepository[AuditReport]):
 
     async def get_with_reports_for_owner(
         self, audit_id: uuid.UUID, owner_id: uuid.UUID
-    ) -> Optional[AuditReport]:
+    ) -> AuditReport | None:
         result = await self.session.execute(
             select(AuditReport)
             .join(Website, AuditReport.website_id == Website.id)
@@ -60,7 +59,7 @@ class AuditRepository(BaseRepository[AuditReport]):
         limit: int = 20,
         website_id: uuid.UUID | None = None,
         status: str | None = None,
-    ) -> List[AuditReport]:
+    ) -> list[AuditReport]:
         query = (
             self._owner_filter(owner_id, website_id, status)
             .order_by(AuditReport.created_at.desc())
@@ -91,7 +90,7 @@ class AuditRepository(BaseRepository[AuditReport]):
         website_id: uuid.UUID,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[AuditReport]:
+    ) -> list[AuditReport]:
         result = await self.session.execute(
             select(AuditReport)
             .where(AuditReport.website_id == website_id)
@@ -101,7 +100,7 @@ class AuditRepository(BaseRepository[AuditReport]):
         )
         return list(result.scalars().all())
 
-    async def get_by_status(self, status: str, limit: int = 100) -> List[AuditReport]:
+    async def get_by_status(self, status: str, limit: int = 100) -> list[AuditReport]:
         result = await self.session.execute(
             select(AuditReport)
             .where(AuditReport.status == status)
@@ -110,7 +109,7 @@ class AuditRepository(BaseRepository[AuditReport]):
         )
         return list(result.scalars().all())
 
-    async def get_failed_for_retry(self, max_retries: int, limit: int = 50) -> List[AuditReport]:
+    async def get_failed_for_retry(self, max_retries: int, limit: int = 50) -> list[AuditReport]:
         result = await self.session.execute(
             select(AuditReport)
             .where(AuditReport.status == "failed")

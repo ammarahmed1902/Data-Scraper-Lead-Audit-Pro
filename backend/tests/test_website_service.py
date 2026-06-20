@@ -1,7 +1,7 @@
 """Website service unit tests."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -23,8 +23,8 @@ def _make_website(
         url=url,
         domain=domain,
         status=WebsiteStatus.PENDING.value,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
 
 
@@ -38,12 +38,19 @@ def service(mock_session):
     return WebsiteService(mock_session)
 
 
+async def _persist_website(website: Website) -> Website:
+    website.id = uuid.uuid4()
+    website.created_at = datetime.now(UTC)
+    website.updated_at = datetime.now(UTC)
+    return website
+
+
 @pytest.mark.asyncio
 async def test_create_website_success(service):
     owner_id = uuid.uuid4()
     service.repo = MagicMock()
     service.repo.get_by_domain = AsyncMock(return_value=None)
-    service.repo.create = AsyncMock(side_effect=lambda w: w)
+    service.repo.create = AsyncMock(side_effect=_persist_website)
 
     data = WebsiteCreate(url="example.com", company_name="Acme")
     result = await service.create_website(data, owner_id)
@@ -71,7 +78,7 @@ async def test_create_website_invalid_url(service):
     service.repo = MagicMock()
 
     with pytest.raises(HTTPException) as exc:
-        await service.create_website(WebsiteCreate(url="not-a-url"), owner_id)
+        await service.create_website(WebsiteCreate.model_construct(url="not-a-url"), owner_id)
     assert exc.value.status_code == 400
 
 
@@ -133,13 +140,13 @@ async def test_bulk_create_dedup_and_errors(service):
     owner_id = uuid.uuid4()
     service.repo = MagicMock()
     service.repo.get_by_domain = AsyncMock(return_value=None)
-    service.repo.create = AsyncMock(side_effect=lambda w: w)
+    service.repo.create = AsyncMock(side_effect=_persist_website)
 
     data = WebsiteBulkCreate(
         websites=[
             WebsiteCreate(url="https://a.com"),
             WebsiteCreate(url="https://a.com"),
-            WebsiteCreate(url="not-valid"),
+            WebsiteCreate.model_construct(url="not-valid"),
             WebsiteCreate(url="https://b.com"),
         ]
     )

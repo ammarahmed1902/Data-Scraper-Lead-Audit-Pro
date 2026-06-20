@@ -19,22 +19,29 @@ export function StatCard({
   className,
 }: StatCardProps) {
   return (
-    <Card className={cn("glass-card", className)}>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        {icon && <div className="text-muted-foreground">{icon}</div>}
+    <Card
+      className={cn(
+        "glass-card group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-elevated",
+        className,
+      )}
+    >
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        {icon && (
+          <div className="rounded-md bg-primary/10 p-2 text-primary transition-colors group-hover:bg-primary/15">
+            {icon}
+          </div>
+        )}
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-2xl font-bold tracking-tight sm:text-3xl">{value}</div>
         {description && (
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
         )}
         {trend && (
           <p
             className={cn(
-              "text-xs mt-1",
+              "mt-1.5 text-xs font-medium",
               trend.value >= 0 ? "text-success" : "text-destructive",
             )}
           >

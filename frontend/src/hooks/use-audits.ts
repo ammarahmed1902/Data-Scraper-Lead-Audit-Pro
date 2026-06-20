@@ -9,7 +9,7 @@ export const auditKeys = {
   status: (id: string) => ["audits", "status", id] as const,
 };
 
-export function useAudits(params: { page?: number; website_id?: string } = {}) {
+export function useAudits(params: { page?: number; page_size?: number; website_id?: string } = {}) {
   return useQuery({
     queryKey: auditKeys.list(params),
     queryFn: () => auditService.list(params),
@@ -36,6 +36,19 @@ export function useCreateAudit() {
       queryClient.invalidateQueries({ queryKey: auditKeys.all });
       queryClient.invalidateQueries({ queryKey: ["websites"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    },
+  });
+}
+
+export function useCreateAuditForLead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leadId, autoImport }: { leadId: string; autoImport?: boolean }) =>
+      auditService.createForLead(leadId, autoImport ?? true),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: auditKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["websites"] });
+      queryClient.invalidateQueries({ queryKey: ["discovery"] });
     },
   });
 }

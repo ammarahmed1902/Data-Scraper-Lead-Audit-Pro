@@ -2,14 +2,13 @@
 
 import uuid
 from datetime import datetime
-from typing import Any, Dict, Optional
-
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
 from pydantic import Field
 
 from app.models.export import ExportStatus, ExportType
-from app.models.report import ReportFormat
+from app.models.report import ReportFormat, ReportStatus
 from app.schemas.common import BaseSchema
 
 
@@ -22,15 +21,32 @@ class ReportCreate(BaseSchema):
 class ReportResponse(BaseSchema):
     id: uuid.UUID
     audit_report_id: uuid.UUID
+    user_id: uuid.UUID | None = None
     title: str
     format: ReportFormat
-    file_path: Optional[str] = None
-    file_size_bytes: Optional[int] = None
+    status: ReportStatus
+    file_path: str | None = None
+    file_size_bytes: int | None = None
+    error_message: str | None = None
     generated_at: datetime
-    expires_at: Optional[datetime] = None
+    expires_at: datetime | None = None
+    has_content: bool = False
 
 
-class ExportFormat(str, Enum):
+class ReportContentResponse(BaseSchema):
+    report_id: uuid.UUID
+    audit_report_id: uuid.UUID
+    title: str
+    status: ReportStatus
+    content: dict[str, Any]
+    generated_at: datetime
+
+
+class AuditReportCreate(BaseSchema):
+    format: ReportFormat = ReportFormat.PDF
+
+
+class ExportFormat(StrEnum):
     CSV = "csv"
     XLSX = "xlsx"
     JSON = "json"
@@ -39,7 +55,7 @@ class ExportFormat(str, Enum):
 class ExportCreate(BaseSchema):
     export_type: ExportType
     format: ExportFormat = ExportFormat.CSV
-    filters: Optional[Dict[str, Any]] = None
+    filters: dict[str, Any] | None = None
 
 
 class ExportResponse(BaseSchema):
@@ -47,10 +63,10 @@ class ExportResponse(BaseSchema):
     export_type: ExportType
     format: str
     status: ExportStatus
-    file_path: Optional[str] = None
-    file_size_bytes: Optional[int] = None
-    record_count: Optional[int] = None
-    error_message: Optional[str] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    file_path: str | None = None
+    file_size_bytes: int | None = None
+    record_count: int | None = None
+    error_message: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     created_at: datetime

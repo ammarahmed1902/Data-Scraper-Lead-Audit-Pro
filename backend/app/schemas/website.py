@@ -2,7 +2,6 @@
 
 import uuid
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import Field, field_validator
 
@@ -13,13 +12,13 @@ from app.utils.helpers import is_valid_url, normalize_url
 
 class WebsiteBase(BaseSchema):
     url: str = Field(..., max_length=2048)
-    company_name: Optional[str] = Field(None, max_length=255)
-    contact_name: Optional[str] = Field(None, max_length=255)
-    contact_email: Optional[str] = Field(None, max_length=255)
-    contact_phone: Optional[str] = Field(None, max_length=50)
-    industry: Optional[str] = Field(None, max_length=100)
-    notes: Optional[str] = None
-    tags: Optional[List[str]] = None
+    company_name: str | None = Field(None, max_length=255)
+    contact_name: str | None = Field(None, max_length=255)
+    contact_email: str | None = Field(None, max_length=255)
+    contact_phone: str | None = Field(None, max_length=50)
+    industry: str | None = Field(None, max_length=100)
+    notes: str | None = None
+    tags: list[str] | None = None
 
     @field_validator("url")
     @classmethod
@@ -35,29 +34,29 @@ class WebsiteCreate(WebsiteBase):
 
 
 class WebsiteBulkCreate(BaseSchema):
-    websites: List[WebsiteCreate] = Field(..., min_length=1, max_length=500)
+    websites: list[WebsiteCreate] = Field(..., min_length=1, max_length=500)
 
 
 class WebsiteBulkResult(BaseSchema):
     created: int
     skipped: int
-    errors: List[dict[str, str]] = []
+    errors: list[dict[str, str]] = []
 
 
 class WebsiteUpdate(BaseSchema):
-    url: Optional[str] = Field(None, max_length=2048)
-    company_name: Optional[str] = None
-    contact_name: Optional[str] = None
-    contact_email: Optional[str] = None
-    contact_phone: Optional[str] = None
-    industry: Optional[str] = None
-    status: Optional[WebsiteStatus] = None
-    notes: Optional[str] = None
-    tags: Optional[List[str]] = None
+    url: str | None = Field(None, max_length=2048)
+    company_name: str | None = None
+    contact_name: str | None = None
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    industry: str | None = None
+    status: WebsiteStatus | None = None
+    notes: str | None = None
+    tags: list[str] | None = None
 
     @field_validator("url")
     @classmethod
-    def validate_url(cls, v: Optional[str]) -> Optional[str]:
+    def validate_url(cls, v: str | None) -> str | None:
         if v is None:
             return v
         normalized = normalize_url(v)
@@ -71,14 +70,14 @@ class WebsiteResponse(WebsiteBase, TimestampMixin):
     owner_id: uuid.UUID
     domain: str
     status: WebsiteStatus
-    last_audited_at: Optional[datetime] = None
+    last_audited_at: datetime | None = None
 
 
 class WebsiteListResponse(BaseSchema):
     id: uuid.UUID
     url: str
     domain: str
-    company_name: Optional[str] = None
+    company_name: str | None = None
     status: WebsiteStatus
-    last_audited_at: Optional[datetime] = None
+    last_audited_at: datetime | None = None
     created_at: datetime

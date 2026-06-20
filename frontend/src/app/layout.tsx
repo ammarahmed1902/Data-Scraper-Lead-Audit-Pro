@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
-import { BrowserExtensionHydrationScript } from "@/components/browser-extension-hydration-script";
+import { PreHydrationScripts } from "@/components/pre-hydration-scripts";
 import { Providers } from "@/components/providers";
 import "@/styles/globals.css";
 
@@ -30,12 +30,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen font-sans antialiased`}
         suppressHydrationWarning
       >
-        <BrowserExtensionHydrationScript />
+        <PreHydrationScripts />
         <Providers>{children}</Providers>
       </body>
     </html>

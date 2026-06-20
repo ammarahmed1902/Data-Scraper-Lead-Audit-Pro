@@ -56,14 +56,17 @@ class ExportService:
             status=ExportStatus.PENDING.value,
         )
         export = await self.repo.create(export)
+        await self.session.commit()
+        export_id = export.id
 
         if settings.CELERY_TASK_ALWAYS_EAGER:
             from app.core.sync_database import get_sync_session
             from app.services.export_runner import ExportRunner
 
             with get_sync_session() as sync_session:
-                ExportRunner(sync_session).run(str(export.id))
-            export = await self.get_export(export.id, user_id)
+                ExportRunner(sync_session).run(str(export_id))
+            self.session.expunge(export)
+            export = await self.get_export(export_id, user_id)
         else:
             from app.workers.tasks import run_export
 

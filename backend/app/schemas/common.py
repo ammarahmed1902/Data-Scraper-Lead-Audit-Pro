@@ -2,11 +2,8 @@
 
 import uuid
 from datetime import datetime
-from typing import Generic, List, Optional, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
-
-T = TypeVar("T")
 
 
 class BaseSchema(BaseModel):
@@ -15,18 +12,18 @@ class BaseSchema(BaseModel):
 
 class TimestampMixin(BaseModel):
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
 
 class PaginationParams(BaseModel):
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=1, le=100)
-    sort_by: Optional[str] = None
+    sort_by: str | None = None
     sort_order: str = Field(default="desc", pattern="^(asc|desc)$")
 
 
-class PaginatedResponse(BaseModel, Generic[T]):
-    items: List[T]
+class PaginatedResponse[T](BaseModel):
+    items: list[T]
     total: int
     page: int
     page_size: int
@@ -35,7 +32,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
 
 class MessageResponse(BaseModel):
     message: str
-    detail: Optional[str] = None
+    detail: str | None = None
 
 
 class IDResponse(BaseModel):

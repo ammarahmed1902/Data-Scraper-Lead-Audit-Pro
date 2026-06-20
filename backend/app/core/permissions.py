@@ -3,12 +3,12 @@ Role-based permission system.
 Defines granular permissions and role-to-permission mappings.
 """
 
-from enum import Enum
+from enum import StrEnum
 
 from app.core.security import ROLE_HIERARCHY, UserRole
 
 
-class Permission(str, Enum):
+class Permission(StrEnum):
     # User management
     USERS_LIST = "users:list"
     USERS_READ = "users:read"
@@ -35,6 +35,19 @@ class Permission(str, Enum):
     # Analytics
     ANALYTICS_VIEW = "analytics:view"
 
+    # Lead Discovery (Phase 01)
+    DISCOVERY_SEARCH = "discovery:search"
+    DISCOVERY_VIEW = "discovery:view"
+    DISCOVERY_IMPORT = "discovery:import"
+
+    # Business Enrichment (Phase 02)
+    ENRICHMENT_RUN = "enrichment:run"
+    ENRICHMENT_VIEW = "enrichment:view"
+
+    # Lead Scoring (Phase 04)
+    SCORING_RUN = "scoring:run"
+    SCORING_VIEW = "scoring:view"
+
     # System
     SYSTEM_ADMIN = "system:admin"
 
@@ -58,6 +71,13 @@ ROLE_PERMISSIONS: dict[UserRole, set[Permission]] = {
         Permission.REPORTS_DOWNLOAD,
         Permission.EXPORTS_CREATE,
         Permission.ANALYTICS_VIEW,
+        Permission.DISCOVERY_SEARCH,
+        Permission.DISCOVERY_VIEW,
+        Permission.DISCOVERY_IMPORT,
+        Permission.ENRICHMENT_RUN,
+        Permission.ENRICHMENT_VIEW,
+        Permission.SCORING_RUN,
+        Permission.SCORING_VIEW,
     },
     UserRole.MANAGER: {
         Permission.USERS_READ,
@@ -72,6 +92,13 @@ ROLE_PERMISSIONS: dict[UserRole, set[Permission]] = {
         Permission.REPORTS_DOWNLOAD,
         Permission.EXPORTS_CREATE,
         Permission.ANALYTICS_VIEW,
+        Permission.DISCOVERY_SEARCH,
+        Permission.DISCOVERY_VIEW,
+        Permission.DISCOVERY_IMPORT,
+        Permission.ENRICHMENT_RUN,
+        Permission.ENRICHMENT_VIEW,
+        Permission.SCORING_RUN,
+        Permission.SCORING_VIEW,
     },
     UserRole.ANALYST: {
         Permission.WEBSITES_LIST,
@@ -82,12 +109,22 @@ ROLE_PERMISSIONS: dict[UserRole, set[Permission]] = {
         Permission.REPORTS_DOWNLOAD,
         Permission.EXPORTS_CREATE,
         Permission.ANALYTICS_VIEW,
+        Permission.DISCOVERY_SEARCH,
+        Permission.DISCOVERY_VIEW,
+        Permission.DISCOVERY_IMPORT,
+        Permission.ENRICHMENT_RUN,
+        Permission.ENRICHMENT_VIEW,
+        Permission.SCORING_RUN,
+        Permission.SCORING_VIEW,
     },
     UserRole.VIEWER: {
         Permission.WEBSITES_LIST,
         Permission.AUDITS_VIEW,
         Permission.REPORTS_DOWNLOAD,
         Permission.ANALYTICS_VIEW,
+        Permission.DISCOVERY_VIEW,
+        Permission.ENRICHMENT_VIEW,
+        Permission.SCORING_VIEW,
     },
 }
 

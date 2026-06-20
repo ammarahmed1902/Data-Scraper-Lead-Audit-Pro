@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,7 +52,7 @@ class AnalyticsService:
         )
         audits = (await self.session.execute(audit_query)).scalars().all()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         week_ago = now - timedelta(days=7)
         month_ago = now - timedelta(days=30)
 
@@ -100,7 +100,7 @@ class AnalyticsService:
         return [ScoreDistribution(range_label=k, count=v) for k, v in buckets.items()]
 
     async def _get_trends(self, owner_id: uuid.UUID, days: int = 30) -> list[AuditTrendPoint]:
-        since = datetime.now(timezone.utc) - timedelta(days=days)
+        since = datetime.now(UTC) - timedelta(days=days)
         audits = (
             await self.session.execute(
                 select(AuditReport)
@@ -132,33 +132,34 @@ class AnalyticsService:
     async def _get_top_issues(self, owner_id: uuid.UUID, limit: int = 10) -> list[dict]:
         from app.models.audit import SEOReport, TechnicalReport
 
-        seo_reports = (
+        issue_counts: dict[str, int] = {}
+
+        seo_issues_rows = (
             await self.session.execute(
-                select(SEOReport)
+                select(SEOReport.issues)
                 .join(AuditReport, SEOReport.audit_report_id == AuditReport.id)
                 .join(Website, AuditReport.website_id == Website.id)
                 .where(Website.owner_id == owner_id)
             )
         ).scalars().all()
 
-        issue_counts: dict[str, int] = {}
-        for report in seo_reports:
-            items = (report.issues or {}).get("items", [])
+        for issues in seo_issues_rows:
+            items = (issues or {}).get("items", [])
             for item in items:
                 code = item.get("code", "UNKNOWN")
                 issue_counts[code] = issue_counts.get(code, 0) + 1
 
-        tech_reports = (
+        tech_issues_rows = (
             await self.session.execute(
-                select(TechnicalReport)
+                select(TechnicalReport.issues)
                 .join(AuditReport, TechnicalReport.audit_report_id == AuditReport.id)
                 .join(Website, AuditReport.website_id == Website.id)
                 .where(Website.owner_id == owner_id)
             )
         ).scalars().all()
 
-        for report in tech_reports:
-            items = (report.issues or {}).get("items", [])
+        for issues in tech_issues_rows:
+            items = (issues or {}).get("items", [])
             for item in items:
                 code = item.get("code", "UNKNOWN")
                 issue_counts[code] = issue_counts.get(code, 0) + 1

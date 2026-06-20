@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from sqlalchemy.orm import Session
@@ -17,10 +17,7 @@ from app.models.audit import (
 )
 from app.models.website import Website, WebsiteStatus
 from app.services.ai_report_service import AIReportService
-from app.services.performance_service import PerformanceService
-from app.services.scraper.page_fetcher import PageFetcher
-from app.services.seo_service import SEOService
-from app.services.technical_service import TechnicalService
+from app.services.audit.advanced_engine import AdvancedAuditEngine
 
 logger = structlog.get_logger(__name__)
 
@@ -28,10 +25,7 @@ logger = structlog.get_logger(__name__)
 class AuditRunner:
     def __init__(self, session: Session):
         self.session = session
-        self.fetcher = PageFetcher()
-        self.seo = SEOService()
-        self.performance = PerformanceService()
-        self.technical = TechnicalService()
+        self.engine = AdvancedAuditEngine()
         self.ai = AIReportService()
 
     def run(self, audit_id: uuid.UUID) -> AuditReport:
@@ -46,28 +40,42 @@ class AuditRunner:
         if website is None:
             audit.status = AuditStatus.FAILED.value
             audit.error_message = "Website not found"
-            audit.completed_at = datetime.now(timezone.utc)
+            audit.completed_at = datetime.now(UTC)
             self.session.flush()
             return audit
 
         audit.status = AuditStatus.RUNNING.value
-        audit.started_at = datetime.now(timezone.utc)
+        audit.started_at = datetime.now(UTC)
         audit.error_message = None
         website.status = WebsiteStatus.AUDITING.value
         self.session.flush()
 
         try:
-            page = self.fetcher.fetch(website.url)
-            seo_data = self.seo.analyze(website.url, page)
-            perf_data = self.performance.analyze(website.url, page)
-            tech_data = self.technical.analyze(website.url, page)
+            result = self.engine.run(
+                website.url,
+                company_name=website.company_name,
+                domain=website.domain,
+            )
+            seo_data = result["seo_data"]
+            perf_data = result["perf_data"]
+            tech_data = result["tech_data"]
+            scores = result["scores"]
 
             self._save_seo_report(audit, seo_data)
             self._save_performance_report(audit, perf_data)
             self._save_technical_report(audit, tech_data)
 
-            scores = [seo_data["score"], perf_data["score"], tech_data["score"]]
-            audit.overall_score = round(sum(scores) / len(scores), 1)
+            audit.overall_score = scores.get("overall")
+            audit.security_score = scores.get("security")
+            audit.mobile_score = scores.get("mobile")
+            audit.technical_seo_score = scores.get("technical_seo")
+            audit.accessibility_score = scores.get("accessibility")
+            audit.conversion_score = scores.get("conversion")
+            audit.lead_opportunity_score = result["lead_opportunity_score"]
+            audit.lead_classification = result["lead_classification"]
+            audit.sales_summary = result["sales_summary"]
+            audit.category_breakdown = result["category_breakdown"]
+
             audit.summary = self.ai.generate_executive_summary(
                 url=website.url,
                 domain=website.domain,
@@ -78,12 +86,20 @@ class AuditRunner:
                 overall_score=audit.overall_score,
             )
             audit.raw_data = {
-                "seo_score": seo_data["score"],
-                "performance_score": perf_data["score"],
-                "technical_score": tech_data["score"],
+                "seo_score": seo_data.get("score"),
+                "performance_score": perf_data.get("score"),
+                "technical_score": tech_data.get("score"),
+                "security_score": scores.get("security"),
+                "mobile_score": scores.get("mobile"),
+                "technical_seo_score": scores.get("technical_seo"),
+                "accessibility_score": scores.get("accessibility"),
+                "conversion_score": scores.get("conversion"),
+                "lead_opportunity_score": result["lead_opportunity_score"],
+                "lead_classification": result["lead_classification"],
+                "opportunity_signals": result["opportunity_signals"],
             }
             audit.status = AuditStatus.COMPLETED.value
-            audit.completed_at = datetime.now(timezone.utc)
+            audit.completed_at = datetime.now(UTC)
             website.status = WebsiteStatus.COMPLETED.value
             website.last_audited_at = audit.completed_at
 
@@ -91,12 +107,26 @@ class AuditRunner:
                 "audit_completed",
                 audit_id=str(audit_id),
                 overall_score=audit.overall_score,
+                lead_classification=audit.lead_classification,
             )
+            from app.services.scoring.auto_score import auto_score_lead_for_website
+
+            auto_score_lead_for_website(self.session, website.id)
+
+            from app.services.report_auto_generate import auto_generate_report_for_audit
+
+            if audit.created_by:
+                auto_generate_report_for_audit(
+                    self.session,
+                    audit.id,
+                    audit.created_by,
+                    website.domain,
+                )
         except Exception as exc:
             logger.exception("audit_failed", audit_id=str(audit_id))
             audit.status = AuditStatus.FAILED.value
             audit.error_message = str(exc)[:2000]
-            audit.completed_at = datetime.now(timezone.utc)
+            audit.completed_at = datetime.now(UTC)
             website.status = WebsiteStatus.FAILED.value
             retry_count = (audit.raw_data or {}).get("retry_count", 0)
             audit.raw_data = {**(audit.raw_data or {}), "retry_count": retry_count}
@@ -115,6 +145,8 @@ class AuditRunner:
         report.title_tag = data.get("title_tag")
         report.meta_description = data.get("meta_description")
         report.h1_count = data.get("h1_count")
+        report.h2_count = data.get("h2_count")
+        report.canonical_url = data.get("canonical_url")
         report.internal_links = data.get("internal_links")
         report.external_links = data.get("external_links")
         report.broken_links = data.get("broken_links")
@@ -142,6 +174,7 @@ class AuditRunner:
         report.page_size_kb = data.get("page_size_kb")
         report.request_count = data.get("request_count")
         report.metrics = data.get("metrics")
+        report.issues = data.get("issues")
         report.recommendations = data.get("recommendations")
         return report
 
@@ -157,6 +190,9 @@ class AuditRunner:
         report.ssl_expiry = data.get("ssl_expiry")
         report.http_status_code = data.get("http_status_code")
         report.server_header = data.get("server_header")
+        report.mobile_friendly = data.get("mobile_friendly")
+        report.indexable = data.get("indexable")
+        report.accessibility_score = data.get("accessibility_score")
         report.technologies = data.get("technologies")
         report.security_headers = data.get("security_headers")
         report.dns_records = data.get("dns_records")

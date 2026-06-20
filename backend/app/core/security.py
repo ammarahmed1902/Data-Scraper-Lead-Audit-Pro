@@ -3,9 +3,9 @@ Security utilities: password hashing, JWT creation/validation, RBAC decorators.
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from enum import Enum
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from enum import StrEnum
+from typing import Any
 
 import bcrypt
 from fastapi import Depends, HTTPException, status
@@ -22,7 +22,7 @@ from app.repositories.user_repository import UserRepository
 security_scheme = HTTPBearer(auto_error=False)
 
 
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     SUPER_ADMIN = "super_admin"
     ADMIN = "admin"
     MANAGER = "manager"
@@ -69,13 +69,13 @@ def create_token_pair(subject: str, role: UserRole) -> TokenPair:
     access_jti = _generate_jti()
     refresh_jti = _generate_jti()
 
-    access_expire = datetime.now(timezone.utc) + timedelta(
+    access_expire = datetime.now(UTC) + timedelta(
         minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
     )
-    refresh_expire = datetime.now(timezone.utc) + timedelta(
+    refresh_expire = datetime.now(UTC) + timedelta(
         days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS
     )
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     access_payload = {
         "sub": subject,
@@ -120,7 +120,7 @@ def decode_token(token: str) -> dict[str, Any]:
 
 
 async def get_current_user_payload(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
 ) -> dict[str, Any]:
     if credentials is None:
         raise HTTPException(

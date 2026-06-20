@@ -24,7 +24,7 @@ const HOP_BY_HOP = new Set([
 
 function log(step: string, detail: Record<string, unknown>) {
   if (process.env.NODE_ENV === "development") {
-    console.info(`[API Proxy] ${step}`, detail);
+    console.warn(`[API Proxy] ${step}`, detail);
   }
 }
 

@@ -4,7 +4,6 @@ All environment variables are loaded and validated here via Pydantic Settings.
 """
 
 from functools import lru_cache
-from typing import List
 
 from pydantic import Field, PostgresDsn, RedisDsn, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -58,6 +57,24 @@ class Settings(BaseSettings):
     EXPORT_STORAGE_PATH: str = "storage/exports"
     REPORT_EXPIRY_DAYS: int = 30
     AUDIT_MAX_RETRIES: int = 3
+    AUTO_GENERATE_REPORTS: bool = True
+
+    # Lead Discovery (Phase 01)
+    DISCOVERY_USER_AGENT: str = "LeadAuditPro/1.0 (contact@leadaudit.pro)"
+    DISCOVERY_REQUEST_DELAY_SECONDS: float = 1.0
+    DISCOVERY_MAX_RESULTS_PER_SEARCH: int = 100
+    DISCOVERY_MAX_PAGES_PER_SEARCH: int = 3
+    DISCOVERY_PAGE_SIZE: int = 50
+    DISCOVERY_ENRICH_WEBSITES: bool = True
+    DISCOVERY_PROFILE_SCRAPE_ENABLED: bool = True
+    DISCOVERY_MAX_PROFILES_PER_SEARCH: int = 25
+    DISCOVERY_HTTP_MAX_RETRIES: int = 3
+    DISCOVERY_HTTP_BACKOFF_SECONDS: float = 2.0
+
+    # Business Enrichment (Phase 02)
+    ENRICHMENT_REQUEST_DELAY_SECONDS: float = 0.75
+    ENRICHMENT_MAX_PAGES: int = 6
+    ENRICHMENT_FETCH_TIMEOUT_SECONDS: float = 20.0
 
     # Dev: use in-memory token store when Redis is unavailable
     USE_MEMORY_TOKEN_STORE: bool = False
@@ -68,7 +85,7 @@ class Settings(BaseSettings):
         return v
 
     @property
-    def cors_origins_list(self) -> List[str]:
+    def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 
     @property

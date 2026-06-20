@@ -10,7 +10,15 @@ from app.core.database import Base
 from app.models import *  # noqa: F401, F403 — import all models for autogenerate
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_SYNC)
+
+def _normalize_sync_url(url: str) -> str:
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+psycopg://", 1)
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+psycopg://", 1)
+    return url
+
+config.set_main_option("sqlalchemy.url", _normalize_sync_url(settings.DATABASE_URL_SYNC))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

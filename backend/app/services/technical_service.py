@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import socket
 import ssl
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse
 
 import structlog
 
+from app.services.accessibility_service import AccessibilityAnalyzer
 from app.services.scraper.html_parser import HtmlParser
 from app.services.scraper.page_fetcher import FetchResult, PageFetcher
 
@@ -30,7 +31,12 @@ class TechnicalAnalyzer:
     def __init__(self, fetcher: PageFetcher | None = None):
         self.fetcher = fetcher or PageFetcher()
 
-    def analyze(self, url: str, page: FetchResult | None = None) -> dict[str, Any]:
+    def analyze(
+        self,
+        url: str,
+        page: FetchResult | None = None,
+        lighthouse_accessibility_score: float | None = None,
+    ) -> dict[str, Any]:
         page = page or self.fetcher.fetch(url)
         parsed = urlparse(page.final_url or url)
         hostname = parsed.hostname or ""
@@ -63,14 +69,34 @@ class TechnicalAnalyzer:
             indexable=indexable,
             crawlable=crawlable,
         )
+
+        a11y_data = AccessibilityAnalyzer().analyze(
+            page, lighthouse_score=lighthouse_accessibility_score
+        )
+        issues.extend(a11y_data["issues"]["items"])
+        recommendations.extend(a11y_data["recommendations"]["items"])
+
         score = self._calculate_score(issues)
+        # Blend technical security score with accessibility
+        if a11y_data.get("score") is not None:
+            score = round((score * 0.65) + (a11y_data["score"] * 0.35), 1)
+
+        ssl_expiry_raw = ssl_info.get("expiry")
+        ssl_expiry = (
+            datetime.fromisoformat(ssl_expiry_raw)
+            if isinstance(ssl_expiry_raw, str) and ssl_expiry_raw
+            else ssl_expiry_raw
+        )
 
         return {
             "score": score,
             "ssl_valid": ssl_info.get("valid"),
-            "ssl_expiry": ssl_info.get("expiry"),
+            "ssl_expiry": ssl_expiry,
             "http_status_code": page.status_code,
             "server_header": page.headers.get("server"),
+            "mobile_friendly": mobile_friendly,
+            "indexable": indexable,
+            "accessibility_score": a11y_data.get("score"),
             "technologies": technologies,
             "security_headers": security_headers,
             "dns_records": dns_records,
@@ -83,6 +109,8 @@ class TechnicalAnalyzer:
                     "crawlable": crawlable,
                     "ssl_details": ssl_info,
                     "uses_https": parsed.scheme == "https",
+                    "accessibility": a11y_data.get("checks"),
+                    "lighthouse_accessibility": lighthouse_accessibility_score,
                 },
             },
             "recommendations": {"items": recommendations},
@@ -93,22 +121,24 @@ class TechnicalAnalyzer:
             return {"valid": False, "expiry": None, "error": "No hostname"}
         try:
             context = ssl.create_default_context()
-            with socket.create_connection((hostname, port), timeout=10) as sock:
-                with context.wrap_socket(sock, server_hostname=hostname) as secure:
-                    cert = secure.getpeercert()
-                    expiry_str = cert.get("notAfter")
-                    expiry = None
-                    if expiry_str:
-                        expiry = datetime.strptime(expiry_str, "%b %d %H:%M:%S %Y %Z").replace(
-                            tzinfo=timezone.utc
-                        )
-                    days_left = (expiry - datetime.now(timezone.utc)).days if expiry else None
-                    return {
-                        "valid": True,
-                        "expiry": expiry,
-                        "days_until_expiry": days_left,
-                        "issuer": dict(x[0] for x in cert.get("issuer", [])),
-                    }
+            with (
+                socket.create_connection((hostname, port), timeout=10) as sock,
+                context.wrap_socket(sock, server_hostname=hostname) as secure,
+            ):
+                cert = secure.getpeercert()
+                expiry_str = cert.get("notAfter")
+                expiry = None
+                if expiry_str:
+                    expiry = datetime.strptime(expiry_str, "%b %d %H:%M:%S %Y %Z").replace(
+                        tzinfo=UTC
+                    )
+                days_left = (expiry - datetime.now(UTC)).days if expiry else None
+                return {
+                    "valid": True,
+                    "expiry": expiry.isoformat() if expiry else None,
+                    "days_until_expiry": days_left,
+                    "issuer": dict(x[0] for x in cert.get("issuer", [])),
+                }
         except Exception as exc:
             return {"valid": False, "expiry": None, "error": str(exc)}
 
@@ -230,5 +260,12 @@ class TechnicalAnalyzer:
 
 
 class TechnicalService:
-    def analyze(self, url: str, page: FetchResult | None = None) -> dict[str, Any]:
-        return TechnicalAnalyzer().analyze(url, page)
+    def analyze(
+        self,
+        url: str,
+        page: FetchResult | None = None,
+        lighthouse_accessibility_score: float | None = None,
+    ) -> dict[str, Any]:
+        return TechnicalAnalyzer().analyze(
+            url, page, lighthouse_accessibility_score=lighthouse_accessibility_score
+        )

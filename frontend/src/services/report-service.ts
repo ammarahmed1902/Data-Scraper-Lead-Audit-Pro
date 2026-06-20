@@ -1,5 +1,10 @@
 import { apiClient } from "@/lib/api-client";
-import type { ExportJob, GeneratedReport, PaginatedResponse } from "@/types";
+import type {
+  ExportJob,
+  GeneratedReport,
+  PaginatedResponse,
+  ReportContentResponse,
+} from "@/types";
 
 export const reportService = {
   list: (params?: { page?: number; audit_id?: string }) => {
@@ -10,12 +15,19 @@ export const reportService = {
     return apiClient.get<PaginatedResponse<GeneratedReport>>(`/reports${qs ? `?${qs}` : ""}`);
   },
 
+  get: (id: string) => apiClient.get<GeneratedReport>(`/reports/${id}`),
+
+  getContent: (id: string) => apiClient.get<ReportContentResponse>(`/reports/${id}/content`),
+
   create: (auditReportId: string, title: string, format = "pdf") =>
     apiClient.post<GeneratedReport>("/reports", {
       audit_report_id: auditReportId,
       title,
       format,
     }),
+
+  createForAudit: (auditId: string, format = "pdf") =>
+    apiClient.post<GeneratedReport>(`/reports/audits/${auditId}`, { format }),
 
   downloadUrl: (reportId: string) => `/api/reports/${reportId}/download`,
 

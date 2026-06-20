@@ -27,6 +27,9 @@ celery_app.conf.update(
         "app.workers.tasks.run_audit": {"queue": "audits"},
         "app.workers.tasks.generate_report": {"queue": "reports"},
         "app.workers.tasks.run_export": {"queue": "exports"},
+        "app.workers.tasks.run_discovery_search": {"queue": "discovery"},
+        "app.workers.tasks.run_enrichment_job": {"queue": "enrichment"},
+        "app.workers.tasks.run_lead_scoring_job": {"queue": "scoring"},
     },
     beat_schedule={
         "cleanup-expired-reports": {

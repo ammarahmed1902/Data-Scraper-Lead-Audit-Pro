@@ -1,7 +1,6 @@
 """Export repository."""
 
 import uuid
-from typing import List, Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +15,7 @@ class ExportRepository(BaseRepository[ExportHistory]):
 
     async def list_for_user(
         self, user_id: uuid.UUID, skip: int = 0, limit: int = 20
-    ) -> List[ExportHistory]:
+    ) -> list[ExportHistory]:
         result = await self.session.execute(
             select(ExportHistory)
             .where(ExportHistory.user_id == user_id)
@@ -36,7 +35,7 @@ class ExportRepository(BaseRepository[ExportHistory]):
 
     async def get_for_user(
         self, export_id: uuid.UUID, user_id: uuid.UUID
-    ) -> Optional[ExportHistory]:
+    ) -> ExportHistory | None:
         result = await self.session.execute(
             select(ExportHistory).where(
                 ExportHistory.id == export_id, ExportHistory.user_id == user_id

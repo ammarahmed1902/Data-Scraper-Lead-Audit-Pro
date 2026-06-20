@@ -4,29 +4,26 @@ All entity repositories inherit from this class.
 """
 
 import uuid
-from typing import Generic, List, Optional, Type, TypeVar
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import Base
 
-ModelT = TypeVar("ModelT", bound=Base)
 
-
-class BaseRepository(Generic[ModelT]):
-    def __init__(self, model: Type[ModelT], session: AsyncSession):
+class BaseRepository[ModelT: Base]:
+    def __init__(self, model: type[ModelT], session: AsyncSession):
         self.model = model
         self.session = session
 
-    async def get_by_id(self, entity_id: uuid.UUID) -> Optional[ModelT]:
+    async def get_by_id(self, entity_id: uuid.UUID) -> ModelT | None:
         return await self.session.get(self.model, entity_id)
 
     async def get_all(
         self,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[ModelT]:
+    ) -> list[ModelT]:
         result = await self.session.execute(
             select(self.model).offset(skip).limit(limit)
         )

@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api-client";
+import { logApi } from "@/lib/api-logger";
 import type { AuditReport, PaginatedResponse } from "@/types";
 
 export const auditService = {
@@ -14,8 +15,18 @@ export const auditService = {
 
   get: (id: string) => apiClient.get<AuditReport>(`/audits/${id}`),
 
-  create: (websiteId: string) =>
-    apiClient.post<AuditReport>("/audits", { website_id: websiteId }),
+  create: (websiteId: string) => {
+    logApi({
+      step: "audit_create_start",
+      method: "POST",
+      url: "/audits",
+      detail: { website_id: websiteId },
+    });
+    return apiClient.post<AuditReport>("/audits", { website_id: websiteId });
+  },
+
+  createForLead: (leadId: string, autoImport = true) =>
+    apiClient.post<AuditReport>(`/audits/leads/${leadId}`, { auto_import: autoImport }),
 
   bulkCreate: (websiteIds: string[]) =>
     apiClient.post<{ queued: number; audit_ids: string[] }>("/audits/bulk", {

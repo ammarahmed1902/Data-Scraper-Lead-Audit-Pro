@@ -2,7 +2,6 @@
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from pydantic import EmailStr, Field
 
@@ -14,7 +13,7 @@ class UserBase(BaseSchema):
     email: EmailStr
     full_name: str = Field(..., min_length=1, max_length=255)
     role: UserRole = UserRole.VIEWER
-    phone: Optional[str] = None
+    phone: str | None = None
     timezone: str = "UTC"
 
 
@@ -23,20 +22,20 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseSchema):
-    email: Optional[EmailStr] = None
-    full_name: Optional[str] = Field(None, min_length=1, max_length=255)
-    role: Optional[UserRole] = None
-    phone: Optional[str] = None
-    timezone: Optional[str] = None
-    is_active: Optional[bool] = None
+    email: EmailStr | None = None
+    full_name: str | None = Field(None, min_length=1, max_length=255)
+    role: UserRole | None = None
+    phone: str | None = None
+    timezone: str | None = None
+    is_active: bool | None = None
 
 
 class UserResponse(UserBase, TimestampMixin):
     id: uuid.UUID
     is_active: bool
     is_verified: bool
-    avatar_url: Optional[str] = None
-    last_login_at: Optional[datetime] = None
+    avatar_url: str | None = None
+    last_login_at: datetime | None = None
 
 
 class UserListResponse(BaseSchema):
