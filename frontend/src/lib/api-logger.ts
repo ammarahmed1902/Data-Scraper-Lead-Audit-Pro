@@ -28,7 +28,15 @@ export function logApi(ctx: ApiLogContext): void {
     ctx.error ? `error=${ctx.error}` : null,
   ].filter(Boolean);
   if (ctx.error) {
-    console.error(parts.join(" | "), ctx.detail ?? "");
+    const level =
+      ctx.step === "session_expired" || ctx.step === "fetch_auth_error"
+        ? "warn"
+        : "error";
+    if (level === "warn") {
+      console.warn(parts.join(" | "), ctx.detail ?? "");
+    } else {
+      console.error(parts.join(" | "), ctx.detail ?? "");
+    }
   } else {
     console.warn(parts.join(" | "), ctx.detail ?? "");
   }

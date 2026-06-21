@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { useAuthHydrated } from "@/hooks/use-auth-hydrated";
 import { setAuthCookie } from "@/lib/auth-cookie";
+import { AuthSessionRefresh } from "@/components/auth/auth-session-refresh";
 
 function AuthLoadingSpinner() {
   return (
@@ -33,5 +34,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return <AuthLoadingSpinner />;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <AuthSessionRefresh />
+      {children}
+    </>
+  );
 }

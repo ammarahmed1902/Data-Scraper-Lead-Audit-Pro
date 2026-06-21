@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Zap } from "lucide-react";
 
 import { FadeIn } from "@/components/animations/fade-in";
@@ -21,6 +21,7 @@ import { logApi } from "@/lib/api-logger";
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const login = useLogin();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -68,6 +69,11 @@ export function LoginForm() {
                   {error}
                 </p>
               )}
+              {searchParams.get("session") === "expired" && !error && (
+                  <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+                    Your session expired. Please sign in again.
+                  </p>
+                )}
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium">
                   Email

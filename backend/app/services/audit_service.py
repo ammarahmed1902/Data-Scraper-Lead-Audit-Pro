@@ -13,7 +13,7 @@ from app.models.audit import AuditReport, AuditStatus
 from app.models.website import WebsiteStatus
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.website_repository import WebsiteRepository
-from app.schemas.audit import AuditListResponse
+from app.schemas.audit import AuditListResponse, to_audit_list_response
 from app.schemas.common import PaginatedResponse
 
 logger = structlog.get_logger(__name__)
@@ -159,7 +159,7 @@ class AuditService:
         )
         total_pages = max(1, (total + page_size - 1) // page_size)
         return PaginatedResponse(
-            items=[AuditListResponse.model_validate(a) for a in audits],
+            items=[to_audit_list_response(a) for a in audits],
             total=total,
             page=page,
             page_size=page_size,

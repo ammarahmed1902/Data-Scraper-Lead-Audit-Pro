@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 
 import { authService } from "@/services/auth-service";
 import { useAuthStore } from "@/store/auth-store";
+import { resetSessionExpiredFlag } from "@/lib/auth-session";
 import { setAuthCookie, clearAuthCookie } from "@/lib/auth-cookie";
 
 export function useLogin() {
@@ -13,6 +14,7 @@ export function useLogin() {
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       authService.login(email, password),
     onSuccess: (data) => {
+      resetSessionExpiredFlag();
       setAuth(data.user, data.tokens);
       setAuthCookie();
     },
@@ -33,6 +35,7 @@ export function useRegister() {
       full_name: string;
     }) => authService.register(email, password, full_name),
     onSuccess: (data) => {
+      resetSessionExpiredFlag();
       setAuth(data.user, data.tokens);
       setAuthCookie();
     },

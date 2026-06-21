@@ -108,8 +108,37 @@ class AuditListResponse(BaseSchema):
     website_id: uuid.UUID
     status: AuditStatus
     overall_score: float | None = None
+    seo_score: float | None = None
+    performance_score: float | None = None
+    technical_score: float | None = None
     created_at: datetime
     completed_at: datetime | None = None
+    company_name: str | None = None
+    website_url: str | None = None
+    domain: str | None = None
+
+
+def to_audit_list_response(audit: AuditReport) -> AuditListResponse:
+    """Build list row with website identity and category scores for the audits table."""
+    website = getattr(audit, "website", None)
+    seo_report = getattr(audit, "seo_report", None)
+    performance_report = getattr(audit, "performance_report", None)
+    technical_report = getattr(audit, "technical_report", None)
+
+    return AuditListResponse(
+        id=audit.id,
+        website_id=audit.website_id,
+        status=audit.status,
+        overall_score=audit.overall_score,
+        seo_score=seo_report.score if seo_report else None,
+        performance_score=performance_report.score if performance_report else None,
+        technical_score=technical_report.score if technical_report else None,
+        created_at=audit.created_at,
+        completed_at=audit.completed_at,
+        company_name=website.company_name if website else None,
+        website_url=website.url if website else None,
+        domain=website.domain if website else None,
+    )
 
 
 def to_audit_response(audit: AuditReport, *, include_reports: bool = False) -> AuditResponse:

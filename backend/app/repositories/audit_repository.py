@@ -4,7 +4,7 @@ import uuid
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import contains_eager, selectinload
 
 from app.models.audit import AuditReport
 from app.models.website import Website
@@ -43,8 +43,11 @@ class AuditRepository(BaseRepository[AuditReport]):
         return result.scalar_one_or_none()
 
     def _owner_filter(self, owner_id: uuid.UUID, website_id: uuid.UUID | None, status: str | None):
-        query = select(AuditReport).join(Website, AuditReport.website_id == Website.id).where(
-            Website.owner_id == owner_id
+        query = (
+            select(AuditReport)
+            .join(Website, AuditReport.website_id == Website.id)
+            .options(contains_eager(AuditReport.website))
+            .where(Website.owner_id == owner_id)
         )
         if website_id:
             query = query.where(AuditReport.website_id == website_id)
@@ -62,6 +65,11 @@ class AuditRepository(BaseRepository[AuditReport]):
     ) -> list[AuditReport]:
         query = (
             self._owner_filter(owner_id, website_id, status)
+            .options(
+                selectinload(AuditReport.seo_report),
+                selectinload(AuditReport.performance_report),
+                selectinload(AuditReport.technical_report),
+            )
             .order_by(AuditReport.created_at.desc())
             .offset(skip)
             .limit(limit)

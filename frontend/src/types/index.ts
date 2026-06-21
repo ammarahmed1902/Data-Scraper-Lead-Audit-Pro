@@ -112,6 +112,21 @@ export interface AuditReport {
   technical_report?: TechnicalReport | null;
 }
 
+export interface AuditListItem {
+  id: string;
+  website_id: string;
+  status: AuditStatus;
+  overall_score?: number | null;
+  seo_score?: number | null;
+  performance_score?: number | null;
+  technical_score?: number | null;
+  created_at: string;
+  completed_at?: string | null;
+  company_name?: string | null;
+  website_url?: string | null;
+  domain?: string | null;
+}
+
 export interface SEOReport {
   id: string;
   score?: number | null;

@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/api-client";
 import { logApi } from "@/lib/api-logger";
-import type { AuditReport, PaginatedResponse } from "@/types";
+import type { AuditListItem, AuditReport, PaginatedResponse } from "@/types";
 
 export const auditService = {
   list: (params?: { page?: number; page_size?: number; website_id?: string; status?: string }) => {
@@ -10,7 +10,7 @@ export const auditService = {
     if (params?.website_id) query.set("website_id", params.website_id);
     if (params?.status) query.set("status", params.status);
     const qs = query.toString();
-    return apiClient.get<PaginatedResponse<AuditReport>>(`/audits${qs ? `?${qs}` : ""}`);
+    return apiClient.get<PaginatedResponse<AuditListItem>>(`/audits${qs ? `?${qs}` : ""}`);
   },
 
   get: (id: string) => apiClient.get<AuditReport>(`/audits/${id}`),

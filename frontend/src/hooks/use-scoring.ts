@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useAuthReady } from "@/hooks/use-auth-ready";
 import { scoringService } from "@/services/scoring-service";
 
 export const scoringKeys = {
@@ -11,9 +12,12 @@ export const scoringKeys = {
 };
 
 export function useScoringDashboard() {
+  const authReady = useAuthReady();
   return useQuery({
     queryKey: scoringKeys.dashboard(),
     queryFn: () => scoringService.getDashboard(),
+    enabled: authReady,
+    retry: false,
   });
 }
 

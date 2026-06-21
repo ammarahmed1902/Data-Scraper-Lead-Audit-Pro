@@ -2,10 +2,14 @@
  * Centralized HTTP client with automatic token refresh on 401.
  */
 
+import {
+  ensureAccessToken,
+  handleSessionExpired,
+  refreshAccessTokenOnce,
+} from "@/lib/auth-session";
 import { logApi } from "@/lib/api-logger";
 import { formatApiError } from "@/lib/format-api-error";
 import { useAuthStore } from "@/store/auth-store";
-import { clearAuthCookie } from "@/lib/auth-cookie";
 
 const API_BASE_URL =
   typeof window !== "undefined"
@@ -29,48 +33,6 @@ interface RequestOptions extends Omit<RequestInit, "body"> {
   skipRefresh?: boolean;
 }
 
-let refreshPromise: Promise<string | null> | null = null;
-
-async function refreshAccessToken(): Promise<string | null> {
-  const { tokens, setAuth, clearAuth, user } = useAuthStore.getState();
-  if (!tokens?.refresh_token) return null;
-
-  const url = `${API_BASE_URL}/auth/refresh`;
-  logApi({ step: "refresh_start", method: "POST", url });
-
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: tokens.refresh_token }),
-    });
-
-    if (!response.ok) {
-      logApi({ step: "refresh_failed", method: "POST", url, status: response.status });
-      clearAuth();
-      clearAuthCookie();
-      return null;
-    }
-
-    const newTokens = await response.json();
-    if (user) {
-      setAuth(user, { ...tokens, ...newTokens });
-    }
-    logApi({ step: "refresh_ok", method: "POST", url, status: response.status });
-    return newTokens.access_token;
-  } catch (error) {
-    logApi({
-      step: "refresh_network_error",
-      method: "POST",
-      url,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    clearAuth();
-    clearAuthCookie();
-    return null;
-  }
-}
-
 async function request<T>(
   endpoint: string,
   options: RequestOptions = {},
@@ -85,8 +47,13 @@ async function request<T>(
     ...customHeaders,
   };
 
-  const accessToken =
-    token ?? useAuthStore.getState().tokens?.access_token ?? null;
+  let accessToken = token ?? null;
+  if (!accessToken && !skipRefresh) {
+    accessToken = await ensureAccessToken();
+  }
+  if (!accessToken) {
+    accessToken = useAuthStore.getState().tokens?.access_token ?? null;
+  }
 
   if (accessToken) {
     (headers as Record<string, string>)["Authorization"] = `Bearer ${accessToken}`;
@@ -144,15 +111,23 @@ async function request<T>(
     durationMs,
   });
 
-  if (response.status === 401 && !skipRefresh && accessToken) {
-    if (!refreshPromise) {
-      refreshPromise = refreshAccessToken().finally(() => {
-        refreshPromise = null;
+  if (response.status === 401 && !skipRefresh) {
+    const refreshToken = useAuthStore.getState().tokens?.refresh_token;
+    if (refreshToken) {
+      const newToken = await refreshAccessTokenOnce();
+      if (newToken) {
+        return request<T>(endpoint, { ...options, token: newToken, skipRefresh: true });
+      }
+
+      handleSessionExpired();
+      logApi({
+        step: "session_expired",
+        method,
+        url,
+        status: 401,
+        durationMs,
       });
-    }
-    const newToken = await refreshPromise;
-    if (newToken) {
-      return request<T>(endpoint, { ...options, token: newToken, skipRefresh: true });
+      throw new ApiError(401, "Your session expired. Please sign in again.");
     }
   }
 
@@ -160,8 +135,9 @@ async function request<T>(
     const error = await response.json().catch(() => ({}));
     const message = formatApiError(response.status, error);
 
+    const isAuthError = response.status === 401;
     logApi({
-      step: "fetch_error_response",
+      step: isAuthError ? "fetch_auth_error" : "fetch_error_response",
       method,
       url,
       status: response.status,
