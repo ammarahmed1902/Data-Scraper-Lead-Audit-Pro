@@ -79,7 +79,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Configure audit completion and export notifications.
+              Email and in-app notifications for audit completion and exports are coming soon.
             </p>
           </CardContent>
         </Card>

@@ -1,6 +1,7 @@
 """Authentication service unit tests."""
 
 import uuid
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -37,14 +38,27 @@ def _make_user(email: str = "test@example.com", password: str = "password123") -
         role=UserRole.VIEWER.value,
         is_active=True,
         is_verified=False,
+        timezone="UTC",
+        created_at=datetime.now(UTC),
     )
+
+
+async def _simulate_create(user: User) -> User:
+    """Mirror repository create flush/refresh so UserResponse validates."""
+    if user.id is None:
+        user.id = uuid.uuid4()
+    if user.created_at is None:
+        user.created_at = datetime.now(UTC)
+    if user.timezone is None:
+        user.timezone = "UTC"
+    return user
 
 
 @pytest.mark.asyncio
 async def test_register_success(auth_service, mock_session):
     auth_service.user_repo = MagicMock()
     auth_service.user_repo.get_by_email = AsyncMock(return_value=None)
-    auth_service.user_repo.create = AsyncMock(side_effect=lambda u: u)
+    auth_service.user_repo.create = AsyncMock(side_effect=_simulate_create)
 
     data = RegisterRequest(
         email="new@example.com",

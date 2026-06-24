@@ -8,6 +8,7 @@ import type { AuditCategoryBreakdown, AuditReport } from "@/types";
 const TABS = [
   "SEO",
   "Performance",
+  "Technical",
   "Functional",
   "Mobile",
   "Technical SEO",
@@ -57,6 +58,7 @@ export function AuditReportTabs({ audit }: AuditReportTabsProps) {
             <CategoryPanel category={audit.category_breakdown?.performance} />
           )
         )}
+        {tab === "Technical" && <TechnicalPanel report={audit.technical_report} />}
         {tab === "Functional" && (
           <CategoryPanel category={audit.category_breakdown?.functional} />
         )}

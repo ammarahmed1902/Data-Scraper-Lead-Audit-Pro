@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { useAuthHydrated } from "@/hooks/use-auth-hydrated";
 import { setAuthCookie } from "@/lib/auth-cookie";
@@ -18,6 +18,7 @@ function AuthLoadingSpinner() {
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { hasHydrated, isAuthenticated } = useAuthHydrated();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -27,8 +28,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    router.replace("/auth/login");
-  }, [hasHydrated, isAuthenticated, router]);
+    const redirect = encodeURIComponent(pathname || "/dashboard");
+    router.replace(`/auth/login?redirect=${redirect}`);
+  }, [hasHydrated, isAuthenticated, router, pathname]);
 
   if (!hasHydrated || !isAuthenticated) {
     return <AuthLoadingSpinner />;

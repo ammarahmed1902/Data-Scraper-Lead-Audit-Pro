@@ -30,6 +30,14 @@ export function useWebsites(params: WebsiteListParams = {}) {
   });
 }
 
+export function useWebsite(id: string, enabled = true) {
+  return useQuery({
+    queryKey: websiteKeys.detail(id),
+    queryFn: () => websiteService.get(id),
+    enabled: enabled && !!id,
+  });
+}
+
 export function useCreateWebsite() {
   const queryClient = useQueryClient();
   return useMutation({

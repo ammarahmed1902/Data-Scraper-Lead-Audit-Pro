@@ -2,14 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Upload } from "lucide-react";
+import { FileSearch, Plus, Upload } from "lucide-react";
 
 import { PageHeader } from "@/components/dashboard/page-header";
 import { BulkImportForm } from "@/components/forms/bulk-import-form";
 import { WebsiteForm } from "@/components/forms/website-form";
 import { WebsiteTable } from "@/components/tables/website-table";
 import { Button } from "@/components/ui/button";
-import { useCreateAudit } from "@/hooks/use-audits";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useBulkCreateAudits, useCreateAudit } from "@/hooks/use-audits";
+import { usePermissions } from "@/hooks/use-permissions";
+import { toast } from "@/hooks/use-toast";
 import { useDeleteWebsite, useWebsites } from "@/hooks/use-websites";
 import type { WebsiteStatus } from "@/types";
 
@@ -24,10 +27,15 @@ export default function WebsitesPage() {
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editId, setEditId] = useState<string | undefined>();
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const deleteWebsite = useDeleteWebsite();
   const createAudit = useCreateAudit();
+  const bulkCreateAudits = useBulkCreateAudits();
   const [auditingIds, setAuditingIds] = useState<Set<string>>(new Set());
+  const { canCreateWebsite, canUpdateWebsite, canDeleteWebsite, canRunAudit } =
+    usePermissions();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -36,6 +44,14 @@ export default function WebsitesPage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
+
+  useEffect(() => {
+    const editParam = new URLSearchParams(window.location.search).get("edit");
+    if (!editParam) return;
+    setFormMode("edit");
+    setEditId(editParam);
+    setFormOpen(true);
+  }, []);
 
   const { data, isLoading, isFetching } = useWebsites({
     page,
@@ -56,26 +72,44 @@ export default function WebsitesPage() {
     setFormOpen(true);
   }, []);
 
-  const handleDelete = useCallback(
-    async (id: string) => {
-      if (!confirm("Delete this website? This cannot be undone.")) return;
-      try {
-        await deleteWebsite.mutateAsync(id);
-      } catch (err) {
-        alert(err instanceof Error ? err.message : "Failed to delete website");
-      }
-    },
-    [deleteWebsite],
-  );
+  const handleDeleteRequest = useCallback((id: string) => {
+    setDeleteTargetId(id);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTargetId) return;
+    try {
+      await deleteWebsite.mutateAsync(deleteTargetId);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deleteTargetId);
+        return next;
+      });
+      toast({ title: "Website deleted" });
+    } catch (err) {
+      toast({
+        title: "Delete failed",
+        description: err instanceof Error ? err.message : "Could not delete website",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteTargetId(null);
+    }
+  }, [deleteTargetId, deleteWebsite]);
 
   const handleAudit = useCallback(
     async (id: string) => {
       setAuditingIds((prev) => new Set(prev).add(id));
       try {
         const audit = await createAudit.mutateAsync(id);
+        toast({ title: "Audit started" });
         router.push(`/audits/${audit.id}`);
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Failed to start audit");
+        toast({
+          title: "Audit failed",
+          description: err instanceof Error ? err.message : "Failed to start audit",
+          variant: "destructive",
+        });
       } finally {
         setAuditingIds((prev) => {
           const next = new Set(prev);
@@ -85,6 +119,46 @@ export default function WebsitesPage() {
       }
     },
     [createAudit, router],
+  );
+
+  const handleBulkAudit = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    try {
+      const result = await bulkCreateAudits.mutateAsync(ids);
+      toast({
+        title: "Bulk audit queued",
+        description: `${result.queued} audit${result.queued === 1 ? "" : "s"} started.`,
+      });
+      setSelectedIds(new Set());
+      router.push("/audits");
+    } catch (err) {
+      toast({
+        title: "Bulk audit failed",
+        description: err instanceof Error ? err.message : "Could not queue audits",
+        variant: "destructive",
+      });
+    }
+  }, [bulkCreateAudits, router, selectedIds]);
+
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleToggleSelectAll = useCallback(
+    (checked: boolean) => {
+      if (!checked) {
+        setSelectedIds(new Set());
+        return;
+      }
+      setSelectedIds(new Set((data?.items ?? []).map((item) => item.id)));
+    },
+    [data?.items],
   );
 
   const handleStatusChange = useCallback((value: WebsiteStatus | "") => {
@@ -99,14 +173,28 @@ export default function WebsitesPage() {
         description="Manage lead websites and trigger audits"
         actions={
           <>
-            <Button variant="outline" onClick={() => setBulkOpen(true)}>
-              <Upload className="h-4 w-4" />
-              Bulk Import
-            </Button>
-            <Button onClick={handleAdd}>
-              <Plus className="h-4 w-4" />
-              Add Website
-            </Button>
+            {canRunAudit && selectedIds.size > 0 && (
+              <Button
+                variant="outline"
+                onClick={handleBulkAudit}
+                disabled={bulkCreateAudits.isPending}
+              >
+                <FileSearch className="h-4 w-4" />
+                Audit selected ({selectedIds.size})
+              </Button>
+            )}
+            {canCreateWebsite && (
+              <>
+                <Button variant="outline" onClick={() => setBulkOpen(true)}>
+                  <Upload className="h-4 w-4" />
+                  Bulk Import
+                </Button>
+                <Button onClick={handleAdd}>
+                  <Plus className="h-4 w-4" />
+                  Add Website
+                </Button>
+              </>
+            )}
           </>
         }
       />
@@ -124,9 +212,16 @@ export default function WebsitesPage() {
         onStatusChange={handleStatusChange}
         onPageChange={setPage}
         onEdit={handleEdit}
-        onDelete={handleDelete}
+        onDelete={handleDeleteRequest}
         onAudit={handleAudit}
         auditingIds={auditingIds}
+        selectedIds={selectedIds}
+        onToggleSelect={handleToggleSelect}
+        onToggleSelectAll={handleToggleSelectAll}
+        canRunAudit={canRunAudit}
+        canUpdate={canUpdateWebsite}
+        canDelete={canDeleteWebsite}
+        enableSelection={canRunAudit}
       />
 
       <WebsiteForm
@@ -137,6 +232,19 @@ export default function WebsitesPage() {
       />
 
       <BulkImportForm open={bulkOpen} onOpenChange={setBulkOpen} />
+
+      <ConfirmDialog
+        open={!!deleteTargetId}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTargetId(null);
+        }}
+        title="Delete website?"
+        description="This cannot be undone. All associated audit history will remain, but the website record will be removed."
+        confirmLabel="Delete"
+        destructive
+        loading={deleteWebsite.isPending}
+        onConfirm={handleDeleteConfirm}
+      />
     </>
   );
 }

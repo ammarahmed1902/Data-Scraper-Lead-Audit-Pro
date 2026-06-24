@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAnalyticsOverview } from "@/hooks/use-analytics";
 import { useScoringDashboard } from "@/hooks/use-scoring";
-import { Globe, FileSearch, CheckCircle, Clock, TrendingUp } from "lucide-react";
+import { Globe, FileSearch, CheckCircle, TrendingUp } from "lucide-react";
 import {
   Bar,
   BarChart,

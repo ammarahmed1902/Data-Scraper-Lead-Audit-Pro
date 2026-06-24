@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ExternalLink, FileSearch, Pencil, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +45,13 @@ interface WebsiteTableProps {
   onDelete: (id: string) => void;
   onAudit: (id: string) => void;
   auditingIds?: Set<string>;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onToggleSelectAll?: (checked: boolean) => void;
+  canRunAudit?: boolean;
+  canUpdate?: boolean;
+  canDelete?: boolean;
+  enableSelection?: boolean;
 }
 
 export function WebsiteTable({
@@ -62,9 +70,20 @@ export function WebsiteTable({
   onDelete,
   onAudit,
   auditingIds,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
+  canRunAudit = true,
+  canUpdate = true,
+  canDelete = true,
+  enableSelection = false,
 }: WebsiteTableProps) {
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
+  const allSelected =
+    items.length > 0 && items.every((website) => selectedIds?.has(website.id));
+  const columnCount =
+    5 + (enableSelection ? 1 : 0);
 
   return (
     <div className="space-y-4">
@@ -100,6 +119,17 @@ export function WebsiteTable({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
+                  {enableSelection && (
+                    <th className="px-4 py-3 text-left font-medium w-10">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={(e) => onToggleSelectAll?.(e.target.checked)}
+                        aria-label="Select all websites on this page"
+                        className="h-4 w-4 rounded border-border"
+                      />
+                    </th>
+                  )}
                   <th className="px-4 py-3 text-left font-medium">Website</th>
                   <th className="px-4 py-3 text-left font-medium hidden md:table-cell">
                     Company
@@ -114,13 +144,13 @@ export function WebsiteTable({
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={columnCount} className="px-4 py-12 text-center text-muted-foreground">
                       Loading websites...
                     </td>
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={columnCount} className="px-4 py-12 text-center text-muted-foreground">
                       No websites found
                     </td>
                   </tr>
@@ -130,20 +160,34 @@ export function WebsiteTable({
                       key={website.id}
                       className="border-b border-border/50 hover:bg-muted/20 transition-colors"
                     >
+                      {enableSelection && (
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds?.has(website.id) ?? false}
+                            onChange={() => onToggleSelect?.(website.id)}
+                            aria-label={`Select ${website.domain}`}
+                            className="h-4 w-4 rounded border-border"
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-0.5">
+                          <Link
+                            href={`/websites/${website.id}`}
+                            className="font-medium text-primary hover:underline inline-flex items-center gap-1 w-fit"
+                          >
+                            {website.domain}
+                          </Link>
                           <a
                             href={website.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-medium text-primary hover:underline inline-flex items-center gap-1"
+                            className="text-xs text-muted-foreground truncate max-w-[200px] inline-flex items-center gap-1 hover:text-foreground"
                           >
-                            {website.domain}
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                          <span className="text-xs text-muted-foreground truncate max-w-[200px]">
                             {website.url}
-                          </span>
+                            <ExternalLink className="h-3 w-3 shrink-0" />
+                          </a>
                         </div>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
@@ -161,33 +205,39 @@ export function WebsiteTable({
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onAudit(website.id)}
-                            disabled={auditingIds?.has(website.id)}
-                            aria-label="Run audit"
-                            title="Run audit"
-                          >
-                            <FileSearch className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onEdit(website.id)}
-                            aria-label="Edit website"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onDelete(website.id)}
-                            aria-label="Delete website"
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canRunAudit && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onAudit(website.id)}
+                              disabled={auditingIds?.has(website.id)}
+                              aria-label="Run audit"
+                              title="Run audit"
+                            >
+                              <FileSearch className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canUpdate && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onEdit(website.id)}
+                              aria-label="Edit website"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onDelete(website.id)}
+                              aria-label="Delete website"
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

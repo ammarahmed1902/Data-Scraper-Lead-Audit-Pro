@@ -7,6 +7,7 @@ import { EnrichmentDetailDialog } from "@/components/discovery/enrichment-detail
 import { DiscoverySearchForm } from "@/components/discovery/discovery-search-form";
 import { DiscoverySearchHistory } from "@/components/discovery/discovery-search-history";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { toast } from "@/hooks/use-toast";
 import {
   useDiscoveredLeads,
   useDiscoverySearch,
@@ -98,7 +99,11 @@ export default function DiscoveryPage() {
       try {
         await importLead.mutateAsync(leadId);
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Import failed");
+        toast({
+          title: "Import failed",
+          description: err instanceof Error ? err.message : "Could not import lead",
+          variant: "destructive",
+        });
       } finally {
         setImportingId(null);
       }
@@ -113,7 +118,11 @@ export default function DiscoveryPage() {
         await enrichLead.mutateAsync(leadId);
         await refetchEnrichments();
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Enrichment failed");
+        toast({
+          title: "Enrichment failed",
+          description: err instanceof Error ? err.message : "Could not enrich lead",
+          variant: "destructive",
+        });
       } finally {
         setEnrichingId(null);
       }
@@ -128,7 +137,11 @@ export default function DiscoveryPage() {
       setBulkJobId(result.job_id);
       await refetchEnrichments();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Bulk enrichment failed");
+      toast({
+        title: "Bulk enrichment failed",
+        description: err instanceof Error ? err.message : "Could not start bulk enrichment",
+        variant: "destructive",
+      });
     }
   }, [selectedSearchId, enrichSearch, refetchEnrichments]);
 
@@ -144,7 +157,11 @@ export default function DiscoveryPage() {
         const audit = await auditLead.mutateAsync({ leadId, autoImport: true });
         window.location.href = `/audits/${audit.id}`;
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Audit failed");
+        toast({
+          title: "Audit failed",
+          description: err instanceof Error ? err.message : "Could not start audit",
+          variant: "destructive",
+        });
       } finally {
         setAuditingId(null);
       }
@@ -158,7 +175,11 @@ export default function DiscoveryPage() {
       await scoreSearch.mutateAsync(selectedSearchId);
       await refetchRanked();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Scoring failed");
+      toast({
+        title: "Scoring failed",
+        description: err instanceof Error ? err.message : "Could not score leads",
+        variant: "destructive",
+      });
     }
   }, [selectedSearchId, scoreSearch, refetchRanked]);
 

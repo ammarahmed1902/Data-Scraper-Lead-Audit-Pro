@@ -19,6 +19,13 @@ import { useLogin } from "@/hooks/use-auth-mutations";
 import { ApiError } from "@/lib/api-client";
 import { logApi } from "@/lib/api-logger";
 
+function resolveRedirectPath(raw: string | null): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) {
+    return "/dashboard";
+  }
+  return raw;
+}
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -34,7 +41,7 @@ export function LoginForm() {
     try {
       await login.mutateAsync({ email, password });
       logApi({ step: "login_form_success" });
-      router.push("/dashboard");
+      router.push(resolveRedirectPath(searchParams.get("redirect")));
     } catch (err) {
       logApi({
         step: "login_form_error",

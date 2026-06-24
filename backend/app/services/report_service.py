@@ -34,13 +34,13 @@ class ReportService:
         page: int = 1,
         page_size: int = 20,
         audit_id: uuid.UUID | None = None,
-    ) -> PaginatedResponse[ReportResponse]:
+    ) -> PaginatedResponse[Report]:
         skip = (page - 1) * page_size
         reports = await self.repo.list_for_owner(owner_id, skip, page_size, audit_id)
         total = await self.repo.count_for_owner(owner_id, audit_id)
         total_pages = max(1, (total + page_size - 1) // page_size)
         return PaginatedResponse(
-            items=[ReportResponse.model_validate(r) for r in reports],
+            items=reports,
             total=total,
             page=page,
             page_size=page_size,
